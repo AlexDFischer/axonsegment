@@ -1,38 +1,41 @@
 using namespace std;
 
+#include <ctime>
 #include "project.h"
 #include "volume.h"
+#include "graphUtils.h"
 #include "RegionPushRelabel.h"
 
 char *programName;
-
-int nLinkCapacity(long intensityDiff, unsigned long minIntensity, unsigned long maxIntensity)
-{
-  return (int) round(25 * exp(-1.0 * intensityDiff * intensityDiff / (2.0 * (maxIntensity - minIntensity) * (maxIntensity - minIntensity))));
-}
-
-int sourceCapacity(long intensity, unsigned long minIntensity, unsigned long maxIntensity)
-{
-	/** 0 means definitely background, 1 means definitely foreground */
-	double score = (double) (intensity - minIntensity + 1) / (maxIntensity - minIntensity + 2);
-	return (int) (-100.0 * log(1 - score));
-}
-
-int sinkCapacity(long intensity, unsigned long minIntensity, unsigned long maxIntensity)
-{
-	/** 0 means definitely background, 1 means definitely foreground */
-	double score = (double) (intensity - minIntensity + 1) / (maxIntensity - minIntensity + 2);
-	return (int) (-100.0 * log(score));
-}
+int width, height, depth, bytesPerPixel;
 
 int main(int argc, char *argv[])
 {
+	clock_t startClock, buildGraphClock, maxFlowClock, writeSegmentationClock;
+	startClock = clock();
 	programName = argv[0];
 	if (argc < 4)
 	{
 		cout << "useage:" << endl;
 		cout << "    " << programName << " -[t/r]i input -[t/r]o output" << endl;
 	}
+	VolumeGraph *g;
+	if (strcmp(argv[1], "-ri") == 0)
+	{
+		if ((g = buildGraphFromRaw(argv[2])) == NULL)
+		{
+			exit(1);
+		}
+	} else if (strcmp(argv[1], "-ti") == 0)
+	{
+		cout << programName << ": tiff input not yet supported" << endl;
+	} else
+	{
+		cout << programName << ": invalid first argument " << argv[1] << endl;
+		exit(0);
+	}
+	buildGraphClock = clock();
+	/*
 	// read volume from input file
 	Volume *volume;
 	volume = (Volume *) malloc(sizeof(Volume));
@@ -40,7 +43,7 @@ int main(int argc, char *argv[])
 	{
 		if (readRaw(volume, argv[2]))
 		{
-			return 1;
+			exit(1);
 		}
 	} else if (strcmp(argv[1], "-ti") == 0)
 	{
@@ -51,6 +54,7 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 	// construct graph
+
 	unsigned long minI = minIntensity(volume);
 	unsigned long maxI = maxIntensity(volume);
 	cout << "minimum intensity: " << minI << "; maximum intensity: " << maxI << endl;
@@ -74,10 +78,19 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-	cout << "finished building graph" << endl;
+	free(volume->data);
+	*/
+	cout << "finished building graph: took " << (buildGraphClock - startClock) / (double) CLOCKS_PER_SEC << " seconds" << endl;
   g->compute_maxflow();
 	cout << "Flow = " << g->get_flow() << endl;
-	free(volume->data);
+	maxFlowClock = clock();
+	cout << "solving maxFlow took " << (maxFlowClock - buildGraphClock) / (double) CLOCKS_PER_SEC << " seconds" << endl;
+
+	Volume *volume = (Volume *) malloc(sizeof(Volume));
+	volume->width = width;
+	volume->height = height;
+	volume->depth = depth;
+
 	volume->bytesPerPixel = 1;
 	mallocVolume(volume);
 	int numFG = 0, numBG = 0;
@@ -94,7 +107,6 @@ int main(int argc, char *argv[])
 			numBG++;
 		}
 	}
-	cout << "numFG: " << numFG << "; numBG: " << numBG << endl;
 	if (strcmp(argv[3], "-ro") == 0)
 	{
 		writeRaw(volume, argv[4]);
@@ -105,6 +117,9 @@ int main(int argc, char *argv[])
 	{
 		cout << programName << ": invalid third argument: " << argv[3] << endl;
 	}
+	writeSegmentationClock = clock();
+	cout << "numFG: " << numFG << "; numBG: " << numBG << endl;
+	cout << "writing segmentation took " << (writeSegmentationClock - maxFlowClock) / (double) CLOCKS_PER_SEC << " seconds" << endl;
   delete g;
 	free(volume->data);
 	free(volume);
