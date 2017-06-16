@@ -20,6 +20,7 @@ int main(int argc, char *argv[])
 		cout << "    " << programName << " -[t/r]i input -[t/r]o output" << endl;
 	}
 	VolumeGraph *g;
+	/*
 	if (strcmp(argv[1], "-ri") == 0)
 	{
 		if ((g = buildGraphFromRaw(argv[2])) == NULL)
@@ -35,7 +36,7 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 	buildGraphClock = clock();
-	/*
+	*/
 	// read volume from input file
 	Volume *volume;
 	volume = (Volume *) malloc(sizeof(Volume));
@@ -54,43 +55,54 @@ int main(int argc, char *argv[])
 		exit(0);
 	}
 	// construct graph
-
-	unsigned long minI = minIntensity(volume);
-	unsigned long maxI = maxIntensity(volume);
-	cout << "minimum intensity: " << minI << "; maximum intensity: " << maxI << endl;
+	width = volume->width;
+	height = volume->height;
+	depth = volume->depth;
   long dimensions[] = {volume->width, volume->height, volume->depth};
-	VolumeGraph *g = new VolumeGraph(dimensions);
-	for (int z = 0; z < volume->depth; z++)
+	g = new VolumeGraph(dimensions);
+	for (int z = 0; z < depth; z++)
 	{
-		for (int y = 0; y < volume->height; y++)
+		for (int y = 0; y < height; y++)
 		{
-			for (int x = 0; x < volume->width; x++)
+			for (int x = 0; x < width; x++)
 			{
 				int id1 = getIndex(volume, x, y, z), id2;
 				unsigned long intensity1 = getIntensity(volume, id1);
-				g->add_terminal_weights(id1, sourceCapacity(intensity1, minI, maxI), sinkCapacity(intensity1, minI, maxI));
-				if (x < volume->width - 1)
+				g->add_terminal_weights(id1, sourceCapacity(intensity1), sinkCapacity(intensity1));
+				if (x < width - 1)
 				{
 					id2 = id1 + 1;
-					int capacity = nLinkCapacity(intensity1 - getIntensity(volume, id2), minI, maxI);
+					int capacity = nLinkCapacity(intensity1, getIntensity(volume, id2));
+					g->add_edge(id1, id2, capacity, capacity);
+				}
+				if (y < height - 1)
+				{
+					id2 = width + id1;
+					int capacity = nLinkCapacity(intensity1, getIntensity(volume, id2));
+					g->add_edge(id1, id2, capacity, capacity);
+				}
+				if (z < depth - 1)
+				{
+					id2 = width * height + id1;
+					int capacity = nLinkCapacity(intensity1, getIntensity(volume, id2));
 					g->add_edge(id1, id2, capacity, capacity);
 				}
 			}
 		}
 	}
 	free(volume->data);
-	*/
+	buildGraphClock = clock();
 	cout << "finished building graph: took " << (buildGraphClock - startClock) / (double) CLOCKS_PER_SEC << " seconds" << endl;
   g->compute_maxflow();
 	cout << "Flow = " << g->get_flow() << endl;
 	maxFlowClock = clock();
 	cout << "solving maxFlow took " << (maxFlowClock - buildGraphClock) / (double) CLOCKS_PER_SEC << " seconds" << endl;
-
+	/*
 	Volume *volume = (Volume *) malloc(sizeof(Volume));
 	volume->width = width;
 	volume->height = height;
 	volume->depth = depth;
-
+	*/
 	volume->bytesPerPixel = 1;
 	mallocVolume(volume);
 	int numFG = 0, numBG = 0;
