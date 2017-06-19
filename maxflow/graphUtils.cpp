@@ -3,7 +3,7 @@
 int nLinkCapacity(unsigned long intensity1, unsigned long intensity2)
 {
   long intensityDiff = (signed) (intensity1 - intensity2);
-  int result = (int) round(75.0 * exp(-1.0 * intensityDiff * intensityDiff / (.5 * MAX_INTENSITY * MAX_INTENSITY)));
+  int result = (int) round(50.0 * exp(-1.0 * intensityDiff * intensityDiff / (.25 * MAX_INTENSITY * MAX_INTENSITY)));
   return result;
 }
 
@@ -20,7 +20,6 @@ int sourceCapacity(unsigned long intensity)
 int sinkCapacity(unsigned long intensity)
 {
 	/** 0 means definitely background, 1 means definitely foreground */
-  intensity = min(2 * intensity, (MAX_INTENSITY + intensity) / 2);
 	double score = (double) (intensity + 1.0) / (MAX_INTENSITY + 2.0);
 	int result = (int) (-30.0 * log(score));
   return result;
